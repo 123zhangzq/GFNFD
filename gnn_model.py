@@ -1,26 +1,49 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, GATConv
+from torch_geometric.nn import GCNConv, GATConv, HeteroConv
 import torch_geometric.nn
 
 # GNN for Order-Courier Dispatching
-class OrderCourierGNN(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
-        super(OrderCourierGNN, self).__init__()
-        self.conv1 = GATConv(input_dim, hidden_dim)
-        self.conv2 = GATConv(hidden_dim, output_dim)
+class OrderCourierHeteroGNN(nn.Module):
+    def __init__(self, order_input_dim, rider_input_dim, hidden_dim, output_dim):
+        super(OrderCourierHeteroGNN, self).__init__()
 
-    def forward(self, x, edge_index, edge_attr):
-        x = self.conv1(x, edge_index, edge_attr)
-        x = F.relu(x)
-        x = self.conv2(x, edge_index, edge_attr)
+        # 第一层：从 order -> rider 传递信息
+        self.conv1 = HeteroConv({
+            ('order', 'assigns_to', 'rider'): GATConv((order_input_dim, rider_input_dim), hidden_dim)
+        }, aggr='sum')
 
-        # 提取边的两个节点的特征
-        src, dst = edge_index  # 订单-骑手匹配的边索引
-        edge_scores = (x[src] * x[dst]).sum(dim=1)  # 点积计算匹配分数
+        # 第二层：可以设计 rider 再传给 order（可选），这里直接 rider self-update
+        self.conv2 = HeteroConv({
+            ('order', 'assigns_to', 'rider'): GATConv((hidden_dim, hidden_dim), output_dim)
+        }, aggr='sum')
 
-        return torch.sigmoid(edge_scores)  # 归一化成概率
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict=None):
+        """
+        x_dict: {'order': order_feats, 'rider': rider_feats}
+        edge_index_dict: {('order', 'assigns_to', 'rider'): edge_index}
+        edge_attr_dict: optional, 目前 GAT 不用 edge_attr
+        """
+        # 第一层传播
+        x_dict = self.conv1(x_dict, edge_index_dict)
+        x_dict = {k: F.relu(v) for k, v in x_dict.items()}
+
+        # 第二层传播
+        x_dict = self.conv2(x_dict, edge_index_dict)
+
+        # 取 rider 节点的最终表示
+        rider_embeddings = x_dict['rider']  # shape: (num_rider, output_dim)
+        order_embeddings = x_dict['order']  # shape: (num_order, output_dim)
+
+        # 根据 edge_index 计算每条边的匹配分数
+        edge_index = edge_index_dict[('order', 'assigns_to', 'rider')]
+        order_idx, rider_idx = edge_index
+
+        # 点积得到匹配分数
+        edge_scores = (order_embeddings[order_idx] * rider_embeddings[rider_idx]).sum(dim=1)
+
+        return torch.sigmoid(edge_scores)  # 可选 sigmoid 归一化为概率
 
 ################################### END GNN for Order-Courier Dispatching #################################
 

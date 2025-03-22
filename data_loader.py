@@ -2,7 +2,7 @@ import pickle
 import random
 import torch
 import numpy as np
-from torch_geometric.data import Data
+from torch_geometric.data import Data, HeteroData
 
 from utils import aspect_ratio_normalize
 
@@ -141,51 +141,71 @@ def gen_pyg_data_orders(orders_coordinates, k_sparse):
 
 
 # function to generate pyg_data for bipartite graph of order-courier
-def gen_pyg_data_bigraph(num_orders, num_riders, on_hand_orders=None):
+def gen_pyg_hetero_bigraph(num_orders, num_riders, order_node_emb, rider_coor, on_hand_orders=None):
     """
-    生成带已分配订单的二分图数据
+    生成 HeteroData 结构的订单-骑手二分图
     :param num_orders: 总订单数（包括新订单和on-hand订单）
     :param num_riders: 骑手数
-    :param on_hand_orders: dict {order_idx: rider_idx} 已分配订单映射 (order和rider都是int索引)
-    :return: PyTorch Geometric Data对象
+    :param on_hand_orders: dict {order_idx: rider_idx} 已分配订单映射
+    :return: torch_geometric.data.HeteroData 对象
     """
     if on_hand_orders is None:
         on_hand_orders = {}
 
-    edges = []
-    edge_features = []
-
-    # 订单节点编号 [0, num_orders-1]
-    # 骑手节点编号 [num_orders, num_orders + num_riders - 1]
-
-    # 处理已分配订单，直接绑定到对应骑手
-    for order_idx, rider_idx in on_hand_orders.items():
-        edges.append((order_idx, num_orders + rider_idx))  # rider索引偏移
-        edge_features.append(np.random.rand())  # 随机匹配分数或成本
-
-    # 剩余新订单，对每个订单连接所有骑手
-    for order_idx in range(num_orders):
-        if order_idx in on_hand_orders:
-            continue  # 已分配订单跳过
-        for rider_idx in range(num_riders):
-            edges.append((order_idx, num_orders + rider_idx))
-            edge_features.append(np.random.rand())
-
-    # 生成 node features
-    # order features: is_on_hand (1/0)
     order_features = []
+    rider_features = []
+
+    # 构建 order 特征，(1, h_emb, h_emb), which is (is_on_hand（1/0, emb of p, emb of d)
     for order_idx in range(num_orders):
         is_on_hand = 1 if order_idx in on_hand_orders else 0
-        order_features.append([is_on_hand])
+        # 拼接：is_on_hand (1维) + order_node_emb[order_idx] + order_node_emb[order_idx + num_orders]
+        emb1 = order_node_emb[order_idx]               # shape (h,)
+        emb2 = order_node_emb[order_idx + num_orders]  # shape (h,)
+        combined_feature = torch.cat([torch.tensor([is_on_hand], dtype=torch.float32), emb1, emb2], dim=0)
+        order_features.append(combined_feature)
 
-    # rider features: 先填0（后续可以加负载、位置等）
-    rider_features = [[0] for _ in range(num_riders)]
+    # 统计每个 rider 当前手上有几个 order
+    rider_load = np.zeros(num_riders, dtype=int)
+    for order_idx, rider_idx in on_hand_orders.items():
+        rider_load[rider_idx] += 1
 
-    x = torch.tensor(order_features + rider_features, dtype=torch.float32)  # shape: (num_nodes, 1)
-    edge_index = torch.tensor(edges, dtype=torch.long).T  # shape: (2, num_edges)
-    edge_attr = torch.tensor(edge_features, dtype=torch.float32).view(-1, 1)  # shape: (num_edges, 1)
+    # rider 特征: (x,y, num_on_hand_order)
+    for rider_idx in range(num_riders):
+        x, y = rider_coor[rider_idx]
+        load = rider_load[rider_idx]
+        rider_features.append([x, y, load])
 
-    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, num_nodes=num_orders + num_riders)
+    # 构建 edge_index（只存 order -> rider）
+    edge_src = []
+    edge_dst = []
+    edge_attr = []
+
+    # 先加 on-hand 订单（已固定）
+    for order_idx, rider_idx in on_hand_orders.items():
+        edge_src.append(order_idx)
+        edge_dst.append(rider_idx)
+        edge_attr.append(np.random.rand())  # 可代表匹配分数或距离
+
+    # 剩下新订单连所有 rider
+    for order_idx in range(num_orders):
+        if order_idx in on_hand_orders:
+            continue
+        for rider_idx in range(num_riders):
+            edge_src.append(order_idx)
+            edge_dst.append(rider_idx)
+            edge_attr.append(np.random.rand())
+
+    # 构建 HeteroData
+    data = HeteroData()
+    data['order'].x = torch.tensor(order_features, dtype=torch.float32)  # shape [num_orders, order_feat_dim]
+    data['rider'].x = torch.tensor(rider_features, dtype=torch.float32)  # shape [num_riders, rider_feat_dim]
+
+    # 转成 tensor
+    edge_index = torch.tensor([edge_src, edge_dst], dtype=torch.long)  # shape [2, num_edges]
+    data['order', 'assigns_to', 'rider'].edge_index = edge_index
+    data['order', 'assigns_to', 'rider'].edge_attr = torch.tensor(edge_attr, dtype=torch.float32).unsqueeze(-1)
+
+    return data
 
 
 
@@ -194,6 +214,13 @@ def gen_pyg_data_bigraph(num_orders, num_riders, on_hand_orders=None):
 
 
 ###### test
+from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
+
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+emb_net = NodeEmbedGNN(feats=3).to(DEVICE)
+# oc_net = OrderCourierHeteroGNN()
+
 
 test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
          for seed in range(1, 2)]
@@ -208,6 +235,13 @@ for orders, riders in test1[epoch]:
     all_coor = aspect_ratio_normalize(all_coor)
 
     all_order_coor = all_coor[:60]
+
+
+    all_order_coor_tensor = torch.tensor(all_order_coor, dtype=torch.float32).to(DEVICE)
+    pyg_order_node = gen_pyg_data_orders(all_order_coor_tensor, k_sparse=30)
+    x_order_node, edge_index_order_node, edge_attr_order_node = pyg_order_node.x, pyg_order_node.edge_index, pyg_order_node.edge_attr
+    node_emb = emb_net(x_order_node, edge_index_order_node, edge_attr_order_node)
+
 
     epoch += 1
 print('finish')

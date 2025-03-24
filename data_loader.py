@@ -302,8 +302,8 @@ for orders, riders in test1[epoch]:
     work_dir = os.path.join(".", "lkh_work_dir")
     os.makedirs(work_dir, exist_ok=True)
     # lkh_exec = os.path.join(work_dir, "LKH-3.exe")
-    exec_name = "LKH-3.exe" if platform.system() == "Windows" else "./LKH"
-    lkh_exec = os.path.join(work_dir, exec_name)
+    exec_name = "LKH-3.exe" if platform.system() == "Windows" else "LKH"
+    lkh_exec = os.path.abspath(os.path.join(work_dir, exec_name))
 
 
     results = {}

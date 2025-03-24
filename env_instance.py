@@ -68,6 +68,48 @@ class HeteroOrderDispatchEnv:
 
 
 
+    '''
+    ################################## Example-to-use ###################################
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    emb_net = NodeEmbedGNN(feats=3).to(DEVICE)
+    oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64).to(DEVICE)
+    
+    
+    test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
+             for seed in range(1, 2)]
+    
+    epoch = 0
+    for orders, riders in test1[epoch]:
+        pickup_coor = np.column_stack((orders['pickup_lng'], orders['pickup_lat']))
+        delivery_coor = np.column_stack((orders['delivery_lng'], orders['delivery_lat']))
+        rider_coor = np.column_stack((riders['courier_lng'], riders['courier_lat']))
+        all_coor = np.vstack((pickup_coor, delivery_coor, rider_coor))
+    
+        all_coor = aspect_ratio_normalize(all_coor)
+    
+        all_order_coor_tensor = torch.tensor(all_coor, dtype=torch.float32).to(DEVICE)
+        pyg_node_emb = gen_pyg_data_nodes(all_order_coor_tensor, num_orders=30, k_sparse=30)
+        x_order_node, edge_index_order_node, edge_attr_order_node = pyg_node_emb.x, pyg_node_emb.edge_index, pyg_node_emb.edge_attr
+        node_emb = emb_net(x_order_node, edge_index_order_node, edge_attr_order_node)
+    
+        orders_emb = node_emb[:60, :]
+        riders_emb = node_emb[60:, :]
+    
+        pyg_order_courier = gen_pyg_hetero_bigraph(num_orders=30, num_riders=5, order_emb= orders_emb, rider_emb=riders_emb)
+    
+    
+        env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net)
+        env_dispatch.run_all()
+        
+        
+        epoch += 1
+    '''
+
+
+
+
+
 
 ###### OLD VERSION
 # class OneOrderDispatchInstance:

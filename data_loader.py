@@ -227,6 +227,7 @@ from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
 from env_instance import HeteroOrderDispatchEnv
 import os
 from lkh3_solver import solve_rider_with_LKH
+import platform
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -300,7 +301,10 @@ for orders, riders in test1[epoch]:
 
     work_dir = os.path.join(".", "lkh_work_dir")
     os.makedirs(work_dir, exist_ok=True)
-    lkh_exec = os.path.join(work_dir, "LKH-3.exe")
+    # lkh_exec = os.path.join(work_dir, "LKH-3.exe")
+    exec_name = "LKH-3.exe" if platform.system() == "Windows" else "./LKH"
+    lkh_exec = os.path.join(work_dir, exec_name)
+
 
     results = {}
     for rider_idx, rider_data in rider_dict.items():

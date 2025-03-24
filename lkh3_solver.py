@@ -72,7 +72,15 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
 
 
     # 正确执行 LKH3：传入 .par 文件
-    result = subprocess.run([lkh_exec, os.path.basename(par_file)], cwd=work_dir, capture_output=True, text=True)
+    assert os.path.exists(lkh_exec), "LKH 执行文件不存在"
+    assert os.path.exists(work_dir), "工作目录不存在"
+    result = subprocess.run(
+        [lkh_exec, os.path.basename(par_file)],
+        cwd=work_dir,
+        capture_output=True,
+        text=True,
+        timeout=60
+    )
     print(result.stdout)
     print(result.stderr)
     print(f"Return code: {result.returncode}")

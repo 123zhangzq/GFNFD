@@ -61,14 +61,12 @@ def generate_problem_and_par(rider_idx, rider_data, save_path):
         f.write(f"PROBLEM_FILE = rider_{rider_idx}.pdtsp\n")
         f.write(f"TOUR_FILE = rider_{rider_idx}.tour\n")
 
-    return par_file
+    return par_file, pdtsp_file
 
 
 def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
     # 生成 .tsp 和 .par 文件
-    par_file = generate_problem_and_par(rider_idx, rider_data, work_dir)
-
-    # TODO:1, how to get the results. 2, del all the files after run
+    par_file, pdtsp_file = generate_problem_and_par(rider_idx, rider_data, work_dir)
 
 
     # 正确执行 LKH3：传入 .par 文件
@@ -81,9 +79,9 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
         text=True,
         timeout=60
     )
-    print(result.stdout)
-    print(result.stderr)
-    print(f"Return code: {result.returncode}")
+    # print(result.stdout)
+    # print(result.stderr)
+    # print(f"Return code: {result.returncode}")
 
     # 匹配 Best PDTSP solution 里的 cost
 
@@ -92,13 +90,12 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
 
     if match:
         cost = int(match.group(1))
-        print(f"找到最优解，Cost = {cost}")
+        print(f"Finish the LKH3, Cost = {cost}")
     else:
-        print("没有找到最优解")
+        raise RuntimeError("LKH3 failed: Cannot solve the problem.")
 
-
-    while True:
-        pass
+    os.remove(par_file)
+    os.remove(pdtsp_file)
 
 
     return cost

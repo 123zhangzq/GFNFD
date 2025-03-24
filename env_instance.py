@@ -32,7 +32,8 @@ class HeteroOrderDispatchEnv:
         edge_logits = edge_logits.masked_fill(mask_assigned, -1e6)
 
         # 3. sigmoid 转换为概率
-        edge_prob = torch.sigmoid(edge_logits)  # (num_edges,)
+        edge_prob = torch.sigmoid(edge_logits)  + 1e-8 # (num_edges,)
+        edge_prob = edge_prob.masked_fill(mask_assigned, 0)
 
         # 4. 采样一条边（按GFlowNet风格，从概率分布中sample）
         edge_distribution = torch.distributions.Categorical(probs=edge_prob)

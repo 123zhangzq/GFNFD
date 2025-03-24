@@ -1,32 +1,49 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, GATConv, HeteroConv
+from torch_geometric.nn import GCNConv, GATConv, HeteroConv, TransformerConv
 import torch_geometric.nn
 
 # GNN for Order-Courier Dispatching
 class OrderCourierHeteroGNN(nn.Module):
-    def __init__(self, order_input_dim, rider_input_dim, edge_attr_dim, hidden_dim):
+    def __init__(self, order_input_dim, rider_input_dim, edge_attr_dim, hidden_dim, omega_dim, omega_encode_dim=4,
+                 flg_gfn=False, Z_out_dim=1):
         super(OrderCourierHeteroGNN, self).__init__()
+
+        # ω 预处理（thermometer或MLP）
+        self.omega_encoder = nn.Linear(omega_dim, omega_encode_dim)
+
+        # GAT
         self.conv = HeteroConv({
-            ('order', 'assigns_to', 'rider'): GATConv((order_input_dim, rider_input_dim), hidden_dim,
-                                                      add_self_loops=False)
+            ('order', 'assigns_to', 'rider'): TransformerConv((order_input_dim, rider_input_dim), hidden_dim,
+                                                              edge_dim=edge_attr_dim)
         }, aggr='sum')
 
         # order投影到hidden_dim
         self.order_proj = nn.Linear(order_input_dim, hidden_dim)
 
-        # Edge MLP：灵活支持多维 edge_attr 输入
-        self.edge_gate_mlp = nn.Sequential(
-            nn.Linear(edge_attr_dim, 16),
+
+        # 最终 edge score MLP（融合 order、rider 和 ω）
+        self.residual_mlp  = nn.Sequential(
+            nn.Linear(hidden_dim * 2 + omega_encode_dim, 32),
             nn.ReLU(),
-            nn.Linear(16, 1),
-            nn.Sigmoid()  # 输出在0-1之间，做 gating
+            nn.Linear(32, 1)  # 输出一个分数
         )
 
-    def forward(self, x_dict, edge_index_dict, edge_attr_dict):
+        # Z for GFlowNet
+        self.Z_net = nn.Sequential(
+            nn.Linear(order_input_dim - 1 + omega_encode_dim, 32),  # input dim is order dim [1:], the first one is 0/1 for assignment or not
+            nn.ReLU(),
+            nn.Linear(32, Z_out_dim),
+        ) if flg_gfn else None
+
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict, omega):
+        # ω编码
+        omega_encoded = self.omega_encoder(omega)  # [batch_size, omega_encode_dim]
+
+        # GAT
         order_embeddings = x_dict['order']  # (num_orders, order_input_dim)
-        x_dict = self.conv(x_dict, edge_index_dict)
+        x_dict = self.conv(x_dict, edge_index_dict, edge_attr_dict)
         rider_embeddings = x_dict['rider']  # (num_riders, hidden_dim)
 
         edge_index = edge_index_dict[('order', 'assigns_to', 'rider')]
@@ -35,17 +52,44 @@ class OrderCourierHeteroGNN(nn.Module):
         # 把 order 先投影
         order_proj_embed = self.order_proj(order_embeddings)  # (num_orders, hidden_dim)
 
-        # 点积
-        raw_scores = (order_proj_embed[order_idx] * rider_embeddings[rider_idx]).sum(dim=1)
 
-        # 处理 edge_attr
-        edge_attr = edge_attr_dict[('order', 'assigns_to', 'rider')]  # [num_edges, edge_attr_dim]
-        gate = self.edge_gate_mlp(edge_attr).squeeze(-1)  # [num_edges]
+        # 拼接 order_embed、rider_embed、omega 编码后的特征
+        num_edges = order_idx.size(0)
+        omega_expand = omega_encoded.unsqueeze(0).expand(num_edges, -1)
+        order_edge_embed = order_proj_embed[order_idx]  # [num_edges, hidden_dim]
+        rider_edge_embed = rider_embeddings[rider_idx]  # [num_edges, hidden_dim]
 
-        # 结合 gate，生成最终匹配分数
-        edge_scores = raw_scores * gate
+        dot_scores = (order_proj_embed[order_idx] * rider_embeddings[rider_idx]).sum(dim=1)
+        residual_input = torch.cat([order_edge_embed, rider_edge_embed, omega_expand], dim=-1)  # [num_edges, hidden*2 + omega_enc]
+
+        # 通过最终打分MLP计算edge分数
+        residual_score = self.residual_mlp(residual_input).squeeze(-1)  # [num_edges]
+
+        # 总分数：点积 + 残差
+        edge_scores = dot_scores + residual_score
+
 
         return {('order', 'assigns_to', 'rider'): edge_scores}
+
+    def cal_logz(self, emb, omega):
+        """
+        emb: shape [num_orders, order_input_dim - 1]
+        omega: shape [omega_dim]
+        """
+        assert self.Z_net is not None
+
+        # omega encode
+        omega_encoded = self.omega_encoder(omega)  # [omega_encode_dim]
+
+        # pool emb
+        pooled_emb = emb.mean(dim=0)  # shape: [order_input_dim - 1]
+
+        # 拼接
+        z_input = torch.cat([pooled_emb, omega_encoded], dim=-1)  # shape: [order_input_dim -1 + omega_encode_dim]
+
+        logZ = self.Z_net(z_input)  # 直接输出 1 个 logZ
+        return logZ
+
 
     '''
     ################################## Example-to-use ###################################

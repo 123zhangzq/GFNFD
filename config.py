@@ -9,5 +9,4 @@ CONFIG = {
     "epochs": 50,             # 训练轮数
     "wandb_project": "GFlowNet_Order_Assignment",  # WandB 项目名称
     "preference_alpha": 1.0,   # Dirichlet 分布的 alpha 参数
-    "num_train_dataset": 10000  # train dataset的instance数量
 }

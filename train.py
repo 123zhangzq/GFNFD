@@ -3,40 +3,49 @@ import torch.optim as optim
 import numpy as np
 import wandb
 from data_loader import generate_train_data
-from gnn_model import OrderCourierGNN, NodeEmbedGNN
-from env_instance import OneOrderDispatchInstance
 from config import CONFIG
 from utils import init_wandb, log_metrics, sample_preference_vector
+from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
+from env_instance import HeteroOrderDispatchEnv
+import os
+from lkh3_solver import solve_rider_with_LKH
+import platform
 
-SEED = 42
+
 
 def train():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    SEED = 42
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {DEVICE}")
 
     # 初始化 WandB
     #init_wandb()
 
     # generate training dataset (orders and couriers)
-    train_dataset = [generate_train_data(CONFIG["num_orders"], CONFIG["num_riders"], device='cuda', seed=seed)
-                     for seed in range(42, CONFIG["num_train_dataset"])]
+    train_dataset = [generate_train_data(CONFIG["num_orders"], CONFIG["num_riders"], device=DEVICE, seed=seed)
+                     for seed in range(SEED, CONFIG["epochs"])]
 
     # 初始化 GNN 和 GFlowNet
-    gnn_node_emb = NodeEmbedGNN().to(device)
-    gnn_order_deispatch = OrderCourierGNN(input_dim=4, hidden_dim=CONFIG["hidden_dim"], output_dim=2).to(device)
+    gnn_node_emb = NodeEmbedGNN(feats=3).to(DEVICE)
+    gnn_order_deispatch = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64, flg_gfn=True).to(DEVICE)
 
     # 优化器
-    optimizer = optim.Adam(list(gnn_order_deispatch.parameters()) + list(gnn_node_emb.parameters()) + list(gflownet.parameters()), lr=CONFIG["lr"])
+    optimizer = optim.Adam(list(gnn_order_deispatch.parameters()) + list(gnn_node_emb.parameters()), lr=CONFIG["lr"])
 
     # 训练循环
-    best_reward = float('-inf')
-    best_solution = None
+    # best_reward = float('-inf')
+    # best_solution = None
+    for epoch in range(len(train_dataset)):
+        for orders, riders in train_dataset[epoch]:
 
-    for epoch in range(CONFIG["epochs"]):
-        optimizer.zero_grad()
+            optimizer.zero_grad()
 
-        # 采样偏好向量 ω
-        preference = sample_preference_vector(alpha=CONFIG["preference_alpha"])
+            # 采样偏好向量 ω
+            preference = sample_preference_vector(alpha=CONFIG["preference_alpha"])
+
+
+
+
 
         # load one instance
         torch.manual_seed(SEED + epoch)  # 为每个 epoch 设定不同的种子

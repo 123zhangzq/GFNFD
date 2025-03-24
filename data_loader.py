@@ -232,15 +232,18 @@ import platform
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 emb_net = NodeEmbedGNN(feats=3).to(DEVICE)
-oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64).to(DEVICE)
+oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64, omega_dim=2, flg_gfn=True).to(DEVICE)
 
 
 test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
-         for seed in range(1, 20)]
+         for seed in range(1, 6)]
 
 
 for epoch in range(len(test1)):
     for orders, riders in test1[epoch]:
+        preference = torch.tensor([0.7, 0.3], dtype=torch.float32).to(DEVICE)
+
+
         pickup_coor = np.column_stack((orders['pickup_lng'], orders['pickup_lat']))
         delivery_coor = np.column_stack((orders['delivery_lng'], orders['delivery_lat']))
         rider_coor = np.column_stack((riders['courier_lng'], riders['courier_lat']))
@@ -262,8 +265,9 @@ for epoch in range(len(test1)):
         # output_score = oc_net(pyg_order_courier.x_dict, pyg_order_courier.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr})
 
 
-        env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net)
-        env_dispatch.run_all()
+        env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net, preference)
+        flow_Z = env_dispatch.get_logz()
+        env_dispatch.run_all(flg_train=True)
 
 
 

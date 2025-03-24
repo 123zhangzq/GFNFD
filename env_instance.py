@@ -3,24 +3,30 @@ import torch
 
 
 class HeteroOrderDispatchEnv:
-    def __init__(self, hetero_data, model):
+    def __init__(self, hetero_data, model, preference):
         self.data = hetero_data
         self.model = model
         self.num_orders = self.data['order'].num_nodes
         self.num_riders = self.data['rider'].num_nodes
+        self.preference_omega = preference
 
-    def run_all(self):
+    def get_logz(self):
+        emb_pd = self.data['order'].x[:, 1:]
+        log_Z = self.model.cal_logz(emb=emb_pd, omega=self.preference_omega)
+        return log_Z
+
+    def run_all(self, flg_train=False):
         while True:
             unassigned_mask = self.data['order'].x[:, 0] == 0  # is_on_hand == 0
             if unassigned_mask.sum() == 0:
                 break  # 全部分配完成
-            self._assign_one_order()
+            self._assign_one_order(flg_train)
         return self.data
 
-    def _assign_one_order(self):
+    def _assign_one_order(self, flg_train=False):
         # 1. 计算所有边的 score
         edge_attr = self.data['order', 'assigns_to', 'rider'].edge_attr
-        out = self.model(self.data.x_dict, self.data.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr})
+        out = self.model(self.data.x_dict, self.data.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr}, self.preference_omega)
         edge_logits = out['order', 'assigns_to', 'rider'].squeeze(-1)  # (num_edges,)
 
         # 2. 动态 mask 方案：直接把 is_on_hand==1 的订单相关边打低分

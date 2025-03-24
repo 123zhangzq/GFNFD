@@ -306,7 +306,6 @@ for orders, riders in test1[epoch]:
     for rider_idx, rider_data in rider_dict.items():
         tour, cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
         results[rider_idx] = {
-            "tour": tour,
             "cost": cost
         }
 

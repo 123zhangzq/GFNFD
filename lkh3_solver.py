@@ -69,37 +69,28 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
     par_file = generate_problem_and_par(rider_idx, rider_data, work_dir)
 
     # TODO:1, how to get the results. 2, del all the files after run
-    while True:
-        print('finish writing lkh file!')
-        pass
 
 
     # 正确执行 LKH3：传入 .par 文件
-    result = subprocess.run([lkh_exec, par_file], cwd=work_dir, capture_output=True, text=True)
+    result = subprocess.run([lkh_exec, os.path.basename(par_file)], cwd=work_dir, capture_output=True, text=True)
     print(result.stdout)
     print(result.stderr)
     print(f"Return code: {result.returncode}")
 
-    # 读取tour文件
-    tour_file = os.path.join(work_dir, f"rider_{rider_idx}.tour")
-    with open(tour_file, 'r') as f:
-        lines = f.readlines()
-    tour = []
-    start = False
-    for line in lines:
-        if "TOUR_SECTION" in line:
-            start = True
-            continue
-        if "-1" in line:
-            break
-        if start:
-            tour.append(int(line.strip()))
+    # 匹配 Best PDTSP solution 里的 cost
 
-    # 读取log获取cost
-    log_file = os.path.join(work_dir, f"rider_{rider_idx}.log")
-    with open(log_file, 'r') as f:
-        log_content = f.read()
-    match = re.search(r"Cost\.min = ([\d\.]+)", log_content)
-    cost = float(match.group(1)) if match else None
+    stdout_text = result.stdout
+    match = re.search(r'Best PDTSP solution:\s+Cost = 0_(\d+)', stdout_text)
 
-    return tour, cost
+    if match:
+        cost = int(match.group(1))
+        print(f"找到最优解，Cost = {cost}")
+    else:
+        print("没有找到最优解")
+
+
+    while True:
+        pass
+
+
+    return cost

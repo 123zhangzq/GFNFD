@@ -4,7 +4,7 @@ import numpy as np
 import wandb
 from data_loader import generate_train_data
 from config import CONFIG
-from utils import init_wandb, log_metrics, sample_preference_vector
+from utils import init_wandb, log_metrics
 from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
 from env_instance import HeteroOrderDispatchEnv
 import os

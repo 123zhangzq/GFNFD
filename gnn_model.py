@@ -6,12 +6,9 @@ import torch_geometric.nn
 
 # GNN for Order-Courier Dispatching
 class OrderCourierHeteroGNN(nn.Module):
-    def __init__(self, order_input_dim, rider_input_dim, edge_attr_dim, hidden_dim, omega_dim, omega_encode_dim=4,
+    def __init__(self, order_input_dim, rider_input_dim, edge_attr_dim, hidden_dim, omega_dim,
                  flg_gfn=False, Z_out_dim=1):
         super(OrderCourierHeteroGNN, self).__init__()
-
-        # ω 预处理（thermometer或MLP）
-        self.omega_encoder = nn.Linear(omega_dim, omega_encode_dim)
 
         # GAT
         self.conv = HeteroConv({
@@ -25,22 +22,19 @@ class OrderCourierHeteroGNN(nn.Module):
 
         # 最终 edge score MLP（融合 order、rider 和 ω）
         self.residual_mlp  = nn.Sequential(
-            nn.Linear(hidden_dim * 2 + omega_encode_dim, 32),
+            nn.Linear(hidden_dim * 2 + omega_dim, 128),
             nn.ReLU(),
-            nn.Linear(32, 1)  # 输出一个分数
+            nn.Linear(128, 1)  # 输出一个分数
         )
 
         # Z for GFlowNet
         self.Z_net = nn.Sequential(
-            nn.Linear(order_input_dim - 1 + omega_encode_dim, 32),  # input dim is order dim [1:], the first one is 0/1 for assignment or not
+            nn.Linear(order_input_dim - 1 + omega_dim, 64),  # input dim is order dim [1:], the first one is 0/1 for assignment or not
             nn.ReLU(),
-            nn.Linear(32, Z_out_dim),
+            nn.Linear(64, Z_out_dim),
         ) if flg_gfn else None
 
-    def forward(self, x_dict, edge_index_dict, edge_attr_dict, omega):
-        # ω编码
-        omega_encoded = self.omega_encoder(omega)  # [batch_size, omega_encode_dim]
-
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict, omega_encoded):
         # GAT
         order_embeddings = x_dict['order']  # (num_orders, order_input_dim)
         x_dict = self.conv(x_dict, edge_index_dict, edge_attr_dict)
@@ -71,15 +65,12 @@ class OrderCourierHeteroGNN(nn.Module):
 
         return {('order', 'assigns_to', 'rider'): edge_scores}
 
-    def cal_logz(self, emb, omega):
+    def cal_logz(self, emb, omega_encoded):
         """
         emb: shape [num_orders, order_input_dim - 1]
         omega: shape [omega_dim]
         """
         assert self.Z_net is not None
-
-        # omega encode
-        omega_encoded = self.omega_encoder(omega)  # [omega_encode_dim]
 
         # pool emb
         pooled_emb = emb.mean(dim=0)  # shape: [order_input_dim - 1]

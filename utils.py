@@ -1,6 +1,8 @@
 import wandb
 from config import CONFIG
+import torch
 import numpy as np
+import random
 
 def init_wandb():
     wandb.init(
@@ -20,12 +22,6 @@ def log_metrics(epoch, loss, reward, best_solution, preference):
     })
 
 
-def sample_preference_vector(alpha=1.0, size=2):
-    """
-    从 Dirichlet 分布中采样偏好向量 ω。
-    """
-    return np.random.dirichlet([alpha] * size)
-
 
 def aspect_ratio_normalize(coords):
     min_vals = np.min(coords, axis=0)
@@ -33,3 +29,25 @@ def aspect_ratio_normalize(coords):
     scale = max(max_vals - min_vals)  # 保证xy尺度一致
     norm_coords = (coords - min_vals) / scale
     return norm_coords
+
+
+def sample_uniform_per_bin(BINS, DEVICE):
+    """
+    均匀在每个bin内采样ω[0]，ω[1]自动补齐
+    """
+    bin_idx = random.randint(0, len(BINS) - 1)  # 均匀采bin
+    bin_start, bin_end = BINS[bin_idx]
+    omega_0 = np.random.uniform(bin_start, bin_end)
+    omega_1 = 1.0 - omega_0
+    omega = torch.tensor([omega_0, omega_1], dtype=torch.float32).to(DEVICE)
+    return omega, bin_idx
+
+def non_uniform_thermometer_encode(value, DEVICE):
+    thresholds = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    encoding = torch.zeros(len(thresholds), dtype=torch.float32).to(DEVICE)
+    for i, threshold in enumerate(thresholds):
+        if value >= threshold:
+            encoding[i] = 1.0
+        else:
+            break
+    return encoding

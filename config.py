@@ -8,5 +8,5 @@ CONFIG = {
     "batch_size": 32,         # 训练批次大小
     "epochs": 50,             # 训练轮数
     "wandb_project": "GFlowNet_Order_Assignment",  # WandB 项目名称
-    "preference_alpha": 1.0,   # Dirichlet 分布的 alpha 参数
+    "preference_bins": [(0.0, 0.5), (0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0)]   # multi-obj weight
 }

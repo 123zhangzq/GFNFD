@@ -228,11 +228,14 @@ from env_instance import HeteroOrderDispatchEnv
 import os
 from lkh3_solver import solve_rider_with_LKH
 import platform
+from config import CONFIG
+from utils import sample_uniform_per_bin, non_uniform_thermometer_encode
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+BINS = CONFIG["preference_bins"]
 
 emb_net = NodeEmbedGNN(feats=3).to(DEVICE)
-oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64, omega_dim=2, flg_gfn=True).to(DEVICE)
+oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64, omega_dim=6, flg_gfn=True).to(DEVICE)
 
 
 test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
@@ -241,7 +244,12 @@ test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
 
 for epoch in range(len(test1)):
     for orders, riders in test1[epoch]:
-        preference = torch.tensor([0.7, 0.3], dtype=torch.float32).to(DEVICE)
+
+
+        omega, bin_idx = sample_uniform_per_bin(BINS, DEVICE)
+        encoded_omega = non_uniform_thermometer_encode(omega[0].item(), DEVICE)
+
+
 
 
         pickup_coor = np.column_stack((orders['pickup_lng'], orders['pickup_lat']))
@@ -265,7 +273,7 @@ for epoch in range(len(test1)):
         # output_score = oc_net(pyg_order_courier.x_dict, pyg_order_courier.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr})
 
 
-        env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net, preference)
+        env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net, encoded_omega)
         flow_Z = env_dispatch.get_logz()
         env_dispatch.run_all(flg_train=True)
 

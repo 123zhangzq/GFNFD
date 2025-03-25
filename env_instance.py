@@ -12,7 +12,7 @@ class HeteroOrderDispatchEnv:
 
     def get_logz(self):
         emb_pd = self.data['order'].x[:, 1:]
-        log_Z = self.model.cal_logz(emb=emb_pd, omega=self.preference_omega)
+        log_Z = self.model.cal_logz(emb=emb_pd, omega_encoded=self.preference_omega)
         return log_Z
 
     def run_all(self, flg_train=False):

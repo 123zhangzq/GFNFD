@@ -32,6 +32,7 @@ class OrderCourierHeteroGNN(nn.Module):
             nn.Linear(order_input_dim - 1 + omega_dim, 64),  # input dim is order dim [1:], the first one is 0/1 for assignment or not
             nn.ReLU(),
             nn.Linear(64, Z_out_dim),
+            nn.Softplus()
         ) if flg_gfn else None
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict, omega_encoded):

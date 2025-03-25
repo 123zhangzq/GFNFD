@@ -222,109 +222,153 @@ def gen_pyg_hetero_bigraph(num_orders, num_riders, order_emb, rider_emb, on_hand
 
 
 
-###### test
-from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
-from env_instance import HeteroOrderDispatchEnv
-import os
-from lkh3_solver import solve_rider_with_LKH
-import platform
-from config import CONFIG
-from utils import sample_uniform_per_bin, non_uniform_thermometer_encode
-
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-BINS = CONFIG["preference_bins"]
-
-emb_net = NodeEmbedGNN(feats=3).to(DEVICE)
-oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64, omega_dim=6, flg_gfn=True).to(DEVICE)
-
-
-test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
-         for seed in range(1, 6)]
-
-
-for epoch in range(len(test1)):
-    for orders, riders in test1[epoch]:
-
-
-        omega, bin_idx = sample_uniform_per_bin(BINS, DEVICE)
-        encoded_omega = non_uniform_thermometer_encode(omega[0].item(), DEVICE)
-
-
-
-
-        pickup_coor = np.column_stack((orders['pickup_lng'], orders['pickup_lat']))
-        delivery_coor = np.column_stack((orders['delivery_lng'], orders['delivery_lat']))
-        rider_coor = np.column_stack((riders['courier_lng'], riders['courier_lat']))
-        all_coor = np.vstack((pickup_coor, delivery_coor, rider_coor))
-
-        all_coor = aspect_ratio_normalize(all_coor)
-
-        all_order_coor_tensor = torch.tensor(all_coor, dtype=torch.float32).to(DEVICE)
-        pyg_node_emb = gen_pyg_data_nodes(all_order_coor_tensor, num_orders=30, k_sparse=30)
-        x_order_node, edge_index_order_node, edge_attr_order_node = pyg_node_emb.x, pyg_node_emb.edge_index, pyg_node_emb.edge_attr
-        node_emb = emb_net(x_order_node, edge_index_order_node, edge_attr_order_node)
-
-        orders_emb = node_emb[:60, :]
-        riders_emb = node_emb[60:, :]
-
-        pyg_order_courier = gen_pyg_hetero_bigraph(num_orders=30, num_riders=5, order_emb= orders_emb, rider_emb=riders_emb)
-
-        # edge_attr = pyg_order_courier['order', 'assigns_to', 'rider'].edge_attr
-        # output_score = oc_net(pyg_order_courier.x_dict, pyg_order_courier.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr})
-
-
-        env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net, encoded_omega)
-        flow_Z = env_dispatch.get_logz()
-        env_dispatch.run_all(flg_train=True)
-
-
-
-        #####################################################################################
-        import pickle
-        # dispatch_result = pyg_order_courier.edge_index_dict['order', 'assigns_to', 'rider'].detach().cpu().numpy()
-        # # 保存到 pkl 文件
-        # with open('tempt_test_dispatch_result.pkl', 'wb') as f:
-        #     pickle.dump(dispatch_result, f)
-        with open('tempt_test_dispatch_result.pkl', 'rb') as f:
-            dispatch_result = pickle.load(f)
-        ###########################################################################################
-
-        # test for LKH3 for solving PDTSP
-        n = 30
-        rider_dict = {}
-        # dispatch_result = pyg_order_courier.edge_index_dict['order', 'assigns_to', 'rider'].detach().cpu().numpy()
-        for order_idx, rider_idx in zip(dispatch_result[0], dispatch_result[1]):
-            pickup_coor = all_coor[order_idx]
-            delivery_coor = all_coor[n + order_idx]
-            if rider_idx not in rider_dict:
-                rider_dict[rider_idx] = {
-                    'start': all_coor[2 * n + rider_idx],
-                    'tasks': []
-                }
-            rider_dict[rider_idx]['tasks'].append(
-                [pickup_coor[0], pickup_coor[1], delivery_coor[0], delivery_coor[1]]
-            )
-
-        # 转为 numpy array
-        for rider_idx in rider_dict:
-            rider_dict[rider_idx]['tasks'] = np.array(rider_dict[rider_idx]['tasks'])
-
-
-
-
-        work_dir = os.path.join(".", "lkh_work_dir")
-        os.makedirs(work_dir, exist_ok=True)
-        # lkh_exec = os.path.join(work_dir, "LKH-3.exe")
-        exec_name = "LKH-3.exe" if platform.system() == "Windows" else "LKH"
-        lkh_exec = os.path.abspath(os.path.join(work_dir, exec_name))
-
-
-        results = {}
-        for rider_idx, rider_data in rider_dict.items():
-            cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
-            results[rider_idx] = {
-                "cost": cost
-            }
-
-
-print('finish')
+# ###### test
+# import math
+# from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
+# from env_instance import HeteroOrderDispatchEnv
+# import os
+# from lkh3_solver import solve_rider_with_LKH
+# import platform
+# from config import CONFIG
+# from utils import sample_uniform_per_bin, non_uniform_thermometer_encode
+#
+# DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# BINS = CONFIG["preference_bins"]
+#
+# emb_net = NodeEmbedGNN(feats=3).to(DEVICE)
+# oc_net = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1, hidden_dim = 64, omega_dim=6, flg_gfn=True).to(DEVICE)
+#
+#
+# test1 = [generate_train_data(30, 5, device='cuda', seed=seed)
+#          for seed in range(1, 6)]
+#
+#
+# for epoch in range(len(test1)):
+#     for orders, riders in test1[epoch]:
+#
+#
+#         omega, bin_idx = sample_uniform_per_bin(BINS, DEVICE)
+#         encoded_omega = non_uniform_thermometer_encode(omega[0].item(), DEVICE)
+#
+#
+#
+#
+#         pickup_coor = np.column_stack((orders['pickup_lng'], orders['pickup_lat']))
+#         delivery_coor = np.column_stack((orders['delivery_lng'], orders['delivery_lat']))
+#         rider_coor = np.column_stack((riders['courier_lng'], riders['courier_lat']))
+#         all_coor = np.vstack((pickup_coor, delivery_coor, rider_coor))
+#
+#         all_coor = aspect_ratio_normalize(all_coor)
+#
+#         all_order_coor_tensor = torch.tensor(all_coor, dtype=torch.float32).to(DEVICE)
+#         pyg_node_emb = gen_pyg_data_nodes(all_order_coor_tensor, num_orders=30, k_sparse=30)
+#         x_order_node, edge_index_order_node, edge_attr_order_node = pyg_node_emb.x, pyg_node_emb.edge_index, pyg_node_emb.edge_attr
+#         node_emb = emb_net(x_order_node, edge_index_order_node, edge_attr_order_node)
+#
+#         orders_emb = node_emb[:60, :]
+#         riders_emb = node_emb[60:, :]
+#
+#         pyg_order_courier = gen_pyg_hetero_bigraph(num_orders=30, num_riders=5, order_emb= orders_emb, rider_emb=riders_emb)
+#
+#         # edge_attr = pyg_order_courier['order', 'assigns_to', 'rider'].edge_attr
+#         # output_score = oc_net(pyg_order_courier.x_dict, pyg_order_courier.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr})
+#
+#
+#
+#         # flow_Z = None
+#         # tb_loss = []
+#         # for i in range(CONFIG["sample_k"]):
+#         #     env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net, encoded_omega)
+#         #     if i == 0:
+#         #         flow_Z = env_dispatch.get_logz()
+#         #     pyg_order_courier, P_forward = env_dispatch.run_all(flg_train=True)
+#
+#         env_dispatch = HeteroOrderDispatchEnv(pyg_order_courier, oc_net, encoded_omega)
+#         flow_Z = env_dispatch.get_logz()
+#         pyg_order_courier, Log_PF = env_dispatch.run_all(flg_train=True)
+#
+#
+#         #####################################################################################
+#         # import pickle
+#         # # dispatch_result = pyg_order_courier.edge_index_dict['order', 'assigns_to', 'rider'].detach().cpu().numpy()
+#         # # # 保存到 pkl 文件
+#         # # with open('tempt_test_dispatch_result.pkl', 'wb') as f:
+#         # #     pickle.dump(dispatch_result, f)
+#         # with open('tempt_test_dispatch_result.pkl', 'rb') as f:
+#         #     dispatch_result = pickle.load(f)
+#         ###########################################################################################
+#
+#         # test for LKH3 for solving PDTSP
+#         n = 30
+#         rider_dict = {}
+#         dispatch_result = pyg_order_courier.edge_index_dict['order', 'assigns_to', 'rider'].detach().cpu().numpy()
+#         for order_idx, rider_idx in zip(dispatch_result[0], dispatch_result[1]):
+#             pickup_coor = all_coor[order_idx]
+#             delivery_coor = all_coor[n + order_idx]
+#             if rider_idx not in rider_dict:
+#                 rider_dict[rider_idx] = {
+#                     'start': all_coor[2 * n + rider_idx],
+#                     'tasks': []
+#                 }
+#             rider_dict[rider_idx]['tasks'].append(
+#                 [pickup_coor[0], pickup_coor[1], delivery_coor[0], delivery_coor[1]]
+#             )
+#         for rider_idx in rider_dict:
+#             rider_dict[rider_idx]['num_tasks'] = len(rider_dict[rider_idx]['tasks'])
+#
+#         # 转为 numpy array
+#         for rider_idx in rider_dict:
+#             rider_dict[rider_idx]['tasks'] = np.array(rider_dict[rider_idx]['tasks'])
+#
+#
+#
+#
+#         work_dir = os.path.join(".", "lkh_work_dir")
+#         os.makedirs(work_dir, exist_ok=True)
+#         # lkh_exec = os.path.join(work_dir, "LKH-3.exe")
+#         exec_name = "LKH-3.exe" if platform.system() == "Windows" else "LKH"
+#         lkh_exec = os.path.abspath(os.path.join(work_dir, exec_name))
+#
+#
+#         results = {}
+#         total_routing_cost = 0
+#         for rider_idx, rider_data in rider_dict.items():
+#             cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
+#             results[rider_idx] = {
+#                 "routing_cost": cost,
+#                 "num_tasks": rider_data['num_tasks']
+#             }
+#             total_routing_cost += cost
+#
+#         f2 = total_routing_cost / 1000
+#
+#         task_counts = [r['num_tasks'] for r in results.values()]
+#         max_tasks = max(task_counts)
+#         min_tasks = min(task_counts)
+#         avg_num_order = CONFIG["num_orders"]/CONFIG["num_riders"]
+#         delta = max(abs(max_tasks - avg_num_order), abs(avg_num_order - min_tasks))
+#
+#         f1 = delta
+#
+#         final_f = f1 * omega[1] + f2 * omega[0]
+#         print("Current reward: ", final_f)
+#
+#         ######
+#         reward_k = 1.0 / (final_f + 1e-8)
+#         Log_R = torch.log(reward_k)
+#         Log_Z_theta = torch.log(flow_Z + 1e-8)
+#         forward_flow = Log_PF.sum(0) + Log_Z_theta
+#         backward_flow = math.log(1 / CONFIG["num_orders"]) + Log_R
+#
+#         tb_loss_k = torch.pow(forward_flow - backward_flow, 2)
+#
+#
+#
+#
+#
+#
+#
+#
+#         print(final_f, tb_loss_k)
+#
+# print('finish')

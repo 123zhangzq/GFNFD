@@ -90,7 +90,7 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
 
     if match:
         cost = int(match.group(1))
-        print(f"Finish the LKH3, Cost = {cost}")
+        # print(f"Finish the LKH3, Cost = {cost}")
     else:
         raise RuntimeError("LKH3 failed: Cannot solve the problem.")
 

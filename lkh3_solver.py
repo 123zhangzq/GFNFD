@@ -60,6 +60,9 @@ def generate_problem_and_par(rider_idx, rider_data, save_path):
     with open(par_file, 'w') as f:
         f.write(f"PROBLEM_FILE = rider_{rider_idx}.pdtsp\n")
         f.write(f"TOUR_FILE = rider_{rider_idx}.tour\n")
+        if N < 20:
+            f.write(f"SUBGRADIENT = NO\n")
+            f.write(f"RUNS = 5\n")
 
     return par_file, pdtsp_file
 

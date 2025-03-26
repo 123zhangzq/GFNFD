@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GATConv, HeteroConv, TransformerConv
 import torch_geometric.nn
+import math
 
 # GNN for Order-Courier Dispatching
 class OrderCourierHeteroGNN(nn.Module):
@@ -24,7 +25,8 @@ class OrderCourierHeteroGNN(nn.Module):
         self.residual_mlp  = nn.Sequential(
             nn.Linear(hidden_dim * 2 + omega_dim, 128),
             nn.ReLU(),
-            nn.Linear(128, 1)  # 输出一个分数
+            nn.Linear(128, 1),  # 输出一个分数
+            #nn.Tanh()  # 限制在 (-1, 1) , 乘系数调节幅度 if need
         )
 
         # Z for GFlowNet
@@ -55,6 +57,8 @@ class OrderCourierHeteroGNN(nn.Module):
         rider_edge_embed = rider_embeddings[rider_idx]  # [num_edges, hidden_dim]
 
         dot_scores = (order_proj_embed[order_idx] * rider_embeddings[rider_idx]).sum(dim=1)
+        dot_scores = dot_scores / math.sqrt(self.order_proj.out_features)
+
         residual_input = torch.cat([order_edge_embed, rider_edge_embed, omega_expand], dim=-1)  # [num_edges, hidden*2 + omega_enc]
 
         # 通过最终打分MLP计算edge分数
@@ -63,6 +67,8 @@ class OrderCourierHeteroGNN(nn.Module):
         # 总分数：点积 + 残差
         edge_scores = dot_scores + residual_score
 
+        # Clamp 输出范围
+        edge_scores = torch.clamp(edge_scores, -10, 10)
 
         return {('order', 'assigns_to', 'rider'): edge_scores}
 

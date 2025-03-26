@@ -3,6 +3,7 @@ from config import CONFIG
 import torch
 import numpy as np
 import random
+import math
 
 def init_wandb():
     wandb.init(
@@ -51,3 +52,9 @@ def non_uniform_thermometer_encode(value, DEVICE):
         else:
             break
     return encoding
+
+
+def get_epsilon_exp(epoch, total_epochs, eps_start=0.2, eps_end=0.05):
+    decay_rate = math.log(eps_end / eps_start) / total_epochs
+    epsilon = eps_start * math.exp(decay_rate * epoch)
+    return max(epsilon, eps_end)

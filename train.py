@@ -79,7 +79,8 @@ def train():
             config["num_orders"],
             config["num_riders"],
             device=DEVICE,
-            seed=seed
+            seed=seed,
+            num_run=config["batch_size"]
         )
 
         # train this epoch

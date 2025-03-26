@@ -86,7 +86,7 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
     # 匹配 Best PDTSP solution 里的 cost
 
     stdout_text = result.stdout
-    match = re.search(r'Best PDTSP solution:\s+Cost = 0_(\d+)', stdout_text)
+    match = re.search(r'Best PDTSP solution:\s+Cost = -?\d+_(\d+)', stdout_text)
 
     if match:
         cost = int(match.group(1))

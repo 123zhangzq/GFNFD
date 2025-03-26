@@ -9,43 +9,44 @@ from utils import aspect_ratio_normalize
 
 # load the training dataset of neu_exp
 def generate_train_data(num_orders=30, num_riders=5, device='cuda', seed=42,
-                        raw_data_path='./dataset/train/neu_exp_dataset.pkl'):
+                        raw_data_path='./dataset/train/neu_exp_dataset.pkl', num_run=1):
     """读取原始数据，生成订单和骑手随机数据，固定随机种子"""
 
     # 读取 pickle 文件
     with open(raw_data_path, 'rb') as f:
         neu_exp_dataset = pickle.load(f)
 
-    # Set a random seed
-    random.seed(seed)
+    for _ in range(num_run):
+        # Set a random seed
+        random.seed(seed+10000)
 
-    # Randomly select num_orders orders from neu_exp_dataset
-    random_orders = random.sample(list(neu_exp_dataset.keys()), min(num_orders, len(neu_exp_dataset)))
+        # Randomly select num_orders orders from neu_exp_dataset
+        random_orders = random.sample(list(neu_exp_dataset.keys()), min(num_orders, len(neu_exp_dataset)))
 
-    # Create a subset dictionary for the selected orders
-    selected_orders = {key: neu_exp_dataset[key] for key in random_orders}
+        # Create a subset dictionary for the selected orders
+        selected_orders = {key: neu_exp_dataset[key] for key in random_orders}
 
-    # Randomly select num_couriers couriers initial locations from neu_exp_dataset
-    random_couriers = random.sample(list(neu_exp_dataset.keys()), min(num_riders, len(neu_exp_dataset)))
+        # Randomly select num_couriers couriers initial locations from neu_exp_dataset
+        random_couriers = random.sample(list(neu_exp_dataset.keys()), min(num_riders, len(neu_exp_dataset)))
 
-    # Create a subset dictionary for the selected orders
-    selected_couriers = {key: neu_exp_dataset[key] for key in random_couriers}
+        # Create a subset dictionary for the selected orders
+        selected_couriers = {key: neu_exp_dataset[key] for key in random_couriers}
 
-    # 生成订单数据
-    orders = {
-        "pickup_lng": [order['sender_lng'] / 1e8 for order in selected_orders.values()],
-        "pickup_lat": [order['sender_lat'] / 1e8 for order in selected_orders.values()],
-        "delivery_lng": [order['recipient_lng'] / 1e8 for order in selected_orders.values()],
-        "delivery_lat": [order['recipient_lat'] / 1e8 for order in selected_orders.values()]
-    }
+        # 生成订单数据
+        orders = {
+            "pickup_lng": [order['sender_lng'] / 1e8 for order in selected_orders.values()],
+            "pickup_lat": [order['sender_lat'] / 1e8 for order in selected_orders.values()],
+            "delivery_lng": [order['recipient_lng'] / 1e8 for order in selected_orders.values()],
+            "delivery_lat": [order['recipient_lat'] / 1e8 for order in selected_orders.values()]
+        }
 
-    # 生成骑手数据
-    riders = {
-        "courier_lng": [order['grab_lng'] / 1e8 for order in selected_couriers.values()],
-        "courier_lat": [order['grab_lat'] / 1e8 for order in selected_couriers.values()]
-    }
+        # 生成骑手数据
+        riders = {
+            "courier_lng": [order['grab_lng'] / 1e8 for order in selected_couriers.values()],
+            "courier_lat": [order['grab_lat'] / 1e8 for order in selected_couriers.values()]
+        }
 
-    yield orders, riders
+        yield orders, riders
 
     '''
     ################################## Example-to-use ###################################

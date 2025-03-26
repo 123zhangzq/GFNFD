@@ -1,14 +1,14 @@
 # config.py - 训练参数
 CONFIG = {
     "run_name": "OrderAssignment",
-    "num_orders": 30,        # 订单数量, e.g., 30
-    "num_riders": 5,         # 骑手数量, e.g., 5
-    "k_sparse": 40,          # 40
+    "num_orders": 10,        # 订单数量, e.g., 30
+    "num_riders": 3,         # 骑手数量, e.g., 5
+    "k_sparse": 21,          # 40
     "sample_k": 5,            # sample k times for one GFN in training, e.g.,10
     "seed": 42,
     "lr": 0.001,              # 学习率
     "hidden_dim": 64,         # GNN 隐藏层维度
-    "batch_size": 10,         # 训练批次大小
+    "batch_size": 3,         # 训练批次大小
     "epochs": 1000,             # 训练轮数
     "wandb_project": "GFlowNet_Order_Assignment",  # WandB 项目名称
     "preference_bins": [(0.0, 0.5), (0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0)],   # multi-obj weight

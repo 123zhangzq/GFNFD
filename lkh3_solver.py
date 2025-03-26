@@ -60,7 +60,16 @@ def generate_problem_and_par(rider_idx, rider_data, save_path):
     with open(par_file, 'w') as f:
         f.write(f"PROBLEM_FILE = rider_{rider_idx}.pdtsp\n")
         f.write(f"TOUR_FILE = rider_{rider_idx}.tour\n")
-        if N < 20:
+        if N < 6:
+            f.write(f"RUNS = 2\n")
+            f.write("TRACE_LEVEL = 1\n")
+            f.write("MOVE_TYPE = 2\n")
+            f.write("PATCHING_C = 0\n")
+            f.write("PATCHING_A = 0\n")
+            f.write("GAIN23 = NO\n")
+            f.write("BACKTRACKING = NO\n")
+            f.write("MAX_CANDIDATES = 0\n")
+        elif N < 20:
             f.write(f"SUBGRADIENT = NO\n")
             f.write(f"RUNS = 5\n")
 
@@ -95,7 +104,8 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
         cost = int(match.group(1))
         # print(f"Finish the LKH3, Cost = {cost}")
     else:
-        raise RuntimeError("LKH3 failed: Cannot solve the problem.")
+        raise RuntimeError(f"LKH3 failed: Cannot solve the problem. Parameter file: {par_file}")
+
 
     os.remove(par_file)
     os.remove(pdtsp_file)

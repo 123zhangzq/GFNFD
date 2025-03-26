@@ -4,7 +4,8 @@ import numpy as np
 import wandb
 from data_loader import generate_train_data
 from config import CONFIG
-from utils import init_wandb, aspect_ratio_normalize,log_metrics, sample_uniform_per_bin, non_uniform_thermometer_encode, get_epsilon_exp
+from utils import init_wandb, aspect_ratio_normalize,log_metrics, sample_uniform_per_bin, \
+    non_uniform_thermometer_encode, get_epsilon_exp, compute_1order_distance, compute_2order_min_distance
 from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
 from env_instance import HeteroOrderDispatchEnv
 import os
@@ -163,7 +164,12 @@ def train():
                 results = {}
                 total_routing_cost = 0
                 for rider_idx, rider_data in rider_dict.items():
-                    cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
+                    if rider_data['num_tasks'] == 1:
+                        cost = compute_1order_distance(rider_data)
+                    elif rider_data['num_tasks'] == 2:
+                        cost = compute_2order_min_distance(rider_data)
+                    else:
+                        cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
                     results[rider_idx] = {
                         "routing_cost": cost,
                         "num_tasks": rider_data['num_tasks']
@@ -208,7 +214,7 @@ def train():
         # Update the schedular
         scheduler.step()
 
-        if epoch % 20 == 0:
+        if epoch == 0 or epoch % 20 == 0:
             average_result = validate(gnn_node_emb, gnn_order_dispatch, DEVICE)
 
         # 保存完整checkpoint
@@ -393,7 +399,12 @@ def validate(gnn_node_emb, gnn_order_dispatch, DEVICE):
                 results = {}
                 total_routing_cost = 0
                 for rider_idx, rider_data in rider_dict.items():
-                    cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
+                    if rider_data['num_tasks'] == 1:
+                        cost = compute_1order_distance(rider_data)
+                    elif rider_data['num_tasks'] == 2:
+                        cost = compute_2order_min_distance(rider_data)
+                    else:
+                        cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
                     results[rider_idx] = {
                         "routing_cost": cost,
                         "num_tasks": rider_data['num_tasks']

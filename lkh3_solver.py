@@ -3,7 +3,7 @@ import re
 import os
 
 
-def generate_problem_and_par(rider_idx, rider_data, save_path):
+def generate_problem_and_par(rider_idx, rider_data, save_path, flg_2runs = False):
     start = rider_data['start'] * 1000
     tasks = rider_data['tasks'] * 1000
     num_orders = tasks.shape[0]
@@ -60,15 +60,18 @@ def generate_problem_and_par(rider_idx, rider_data, save_path):
     with open(par_file, 'w') as f:
         f.write(f"PROBLEM_FILE = rider_{rider_idx}.pdtsp\n")
         f.write(f"TOUR_FILE = rider_{rider_idx}.tour\n")
-        if N < 6:
+        # if N < 6:
+        #     f.write(f"RUNS = 2\n")
+        #     f.write("TRACE_LEVEL = 1\n")
+        #     f.write("MOVE_TYPE = 2\n")
+        #     f.write("PATCHING_C = 0\n")
+        #     f.write("PATCHING_A = 0\n")
+        #     f.write("GAIN23 = NO\n")
+        #     f.write("BACKTRACKING = NO\n")
+        #     f.write("MAX_CANDIDATES = 0\n")
+        if flg_2runs:
+            f.write(f"SUBGRADIENT = NO\n")
             f.write(f"RUNS = 2\n")
-            f.write("TRACE_LEVEL = 1\n")
-            f.write("MOVE_TYPE = 2\n")
-            f.write("PATCHING_C = 0\n")
-            f.write("PATCHING_A = 0\n")
-            f.write("GAIN23 = NO\n")
-            f.write("BACKTRACKING = NO\n")
-            f.write("MAX_CANDIDATES = 0\n")
         elif N < 20:
             f.write(f"SUBGRADIENT = NO\n")
             f.write(f"RUNS = 5\n")
@@ -76,10 +79,12 @@ def generate_problem_and_par(rider_idx, rider_data, save_path):
     return par_file, pdtsp_file
 
 
-def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
+def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir, flg_cannot_run=None):
     # 生成 .tsp 和 .par 文件
-    par_file, pdtsp_file = generate_problem_and_par(rider_idx, rider_data, work_dir)
-
+    if not flg_cannot_run[0]:
+        par_file, pdtsp_file = generate_problem_and_par(rider_idx, rider_data, work_dir)
+    else:
+        par_file, pdtsp_file = generate_problem_and_par(rider_idx, rider_data, work_dir, flg_2runs = True)
 
     # 正确执行 LKH3：传入 .par 文件
     assert os.path.exists(lkh_exec), "LKH 执行文件不存在"
@@ -104,11 +109,24 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir):
         cost = int(match.group(1))
         # print(f"Finish the LKH3, Cost = {cost}")
     else:
-        raise RuntimeError(f"LKH3 failed: Cannot solve the problem. Parameter file: {par_file}")
-
+        flg_cannot_run[0] = True
+        return None
 
     os.remove(par_file)
     os.remove(pdtsp_file)
 
 
     return cost
+
+
+def LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir):
+    for attempt in range(2):  # 最多两次尝试
+        flg_cannot_run = [False]
+        cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir, flg_cannot_run)
+        if not flg_cannot_run[0]:
+            return cost  # 2nd try success
+        else:
+            print(f"Try LKH {attempt + 1} times，retry..." if attempt == 0 else "LKH fail!!!")
+
+    # 如果两次都失败
+    raise RuntimeError(f"LKH3 failed twice for rider {rider_idx}")

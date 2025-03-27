@@ -10,9 +10,9 @@ CONFIG = {
     "hidden_dim": 64,         # GNN 隐藏层维度
     "batch_size": 3,         # 训练批次大小
     "epochs": 1000,             # 训练轮数
-    "wandb_project": "GFlowNet_Order_Assignment",  # WandB 项目名称
+    # "wandb_project": "GFlowNet_Order_Assignment",  # WandB 项目名称
     "preference_bins": [(0.0, 0.5), (0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0)],   # multi-obj weight
-    "pretrained": None,       # Loading training checkpoint, e.g.,"./pretrained/25/checkpoint_epoch0.pt"
+    "pretrained": None,       # Loading training checkpoint, e.g.,"./pretrained/10_3/checkpoint_epoch0.pt"
     "output": "./pretrained"
 
 

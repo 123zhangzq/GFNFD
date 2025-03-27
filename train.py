@@ -9,7 +9,7 @@ from utils import init_wandb, aspect_ratio_normalize,log_metrics, sample_uniform
 from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
 from env_instance import HeteroOrderDispatchEnv
 import os
-from lkh3_solver import solve_rider_with_LKH
+from lkh3_solver import LKH_solve_rider_with_retry
 from data_loader import gen_pyg_data_nodes, gen_pyg_hetero_bigraph
 import platform
 import math
@@ -169,7 +169,8 @@ def train():
                     elif rider_data['num_tasks'] == 2:
                         cost = compute_2order_min_distance(rider_data)
                     else:
-                        cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
+                        # cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
+                        cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir)
                     results[rider_idx] = {
                         "routing_cost": cost,
                         "num_tasks": rider_data['num_tasks']
@@ -226,7 +227,7 @@ def train():
                 'oc_model_state_dict': gnn_order_dispatch.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'scheduler_state_dict': scheduler.state_dict(),
-                'config': config,
+                'config': vars(CONFIG),
             }, checkpoint_path)
 
 
@@ -404,7 +405,7 @@ def validate(gnn_node_emb, gnn_order_dispatch, DEVICE):
                     elif rider_data['num_tasks'] == 2:
                         cost = compute_2order_min_distance(rider_data)
                     else:
-                        cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
+                        cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir)
                     results[rider_idx] = {
                         "routing_cost": cost,
                         "num_tasks": rider_data['num_tasks']

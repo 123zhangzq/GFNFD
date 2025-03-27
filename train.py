@@ -227,7 +227,7 @@ def train():
                 'oc_model_state_dict': gnn_order_dispatch.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'scheduler_state_dict': scheduler.state_dict(),
-                'config': vars(CONFIG),
+                'config': CONFIG,
             }, checkpoint_path)
 
 

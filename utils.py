@@ -139,3 +139,61 @@ def compute_2order_min_distance(rider_data):
             min_total = total_dist
 
     return min_total
+
+
+import math
+
+def compute_multiorder_min_distance(rider_data):
+    """
+    支持任意数量订单的最短合法路径计算。
+    每个订单需先访问 pickup，再访问 delivery，返回最小欧氏距离。
+    """
+    depot = rider_data['start']
+    tasks = rider_data['tasks']
+    num_orders = len(tasks)
+
+    points = []
+    for i, task in enumerate(tasks):
+        pickup = (task[0], task[1])
+        delivery = (task[2], task[3])
+        points.append(('p', i, pickup))
+        points.append(('d', i, delivery))
+
+    visited = [False] * len(points)
+    best_dist = [float('inf')]
+
+    def euclidean(p1, p2):
+        return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
+
+    def dfs(path, curr_pos, curr_dist, visited_pickups):
+        if len(path) == len(points):
+            # 回到 depot 可选，如不需要可注释下一行
+            curr_dist += euclidean(curr_pos, depot)
+            if curr_dist < best_dist[0]:
+                best_dist[0] = curr_dist
+            return
+
+        if curr_dist >= best_dist[0]:
+            return  # 剪枝
+
+        for i, (ptype, idx, coord) in enumerate(points):
+            if visited[i]:
+                continue
+
+            if ptype == 'd' and idx not in visited_pickups:
+                continue  # delivery 必须在 pickup 之后
+
+            # 状态更新
+            visited[i] = True
+            if ptype == 'p':
+                visited_pickups.add(idx)
+
+            dfs(path + [coord], coord, curr_dist + euclidean(curr_pos, coord), visited_pickups)
+
+            # 回溯
+            visited[i] = False
+            if ptype == 'p':
+                visited_pickups.remove(idx)
+
+    dfs([], depot, 0.0, set())
+    return best_dist[0]

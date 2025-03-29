@@ -5,7 +5,7 @@ import wandb
 from data_loader import generate_train_data
 from config import CONFIG
 from utils import init_wandb, aspect_ratio_normalize,log_metrics, sample_uniform_per_bin, \
-    non_uniform_thermometer_encode, get_epsilon_exp, compute_1order_distance, compute_2order_min_distance
+    non_uniform_thermometer_encode, get_epsilon_exp, compute_1order_distance, compute_2order_min_distance, compute_multiorder_min_distance
 from gnn_model import OrderCourierHeteroGNN, NodeEmbedGNN
 from env_instance import HeteroOrderDispatchEnv
 import os
@@ -168,6 +168,8 @@ def train():
                         cost = compute_1order_distance(rider_data)
                     elif rider_data['num_tasks'] == 2:
                         cost = compute_2order_min_distance(rider_data)
+                    elif rider_data['num_tasks'] == 3:
+                        cost = compute_multiorder_min_distance(rider_data)
                     else:
                         # cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
                         cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir)
@@ -215,6 +217,8 @@ def train():
         # Update the schedular
         scheduler.step()
 
+        # validation
+        average_result = None
         if epoch == 0 or epoch % 20 == 0:
             average_result = validate(gnn_node_emb, gnn_order_dispatch, DEVICE)
 
@@ -233,7 +237,7 @@ def train():
 
         # wandb日志
         if USE_WANDB:
-            wandb.log({"epoch": epoch, "lr": scheduler.get_last_lr()[0], "loss":loss})
+            wandb.log({"epoch": epoch, "lr": scheduler.get_last_lr()[0], "loss":loss, "val": average_result})
 
 
 
@@ -404,6 +408,8 @@ def validate(gnn_node_emb, gnn_order_dispatch, DEVICE):
                         cost = compute_1order_distance(rider_data)
                     elif rider_data['num_tasks'] == 2:
                         cost = compute_2order_min_distance(rider_data)
+                    elif rider_data['num_tasks'] == 3:
+                        cost = compute_multiorder_min_distance(rider_data)
                     else:
                         cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir)
                     results[rider_idx] = {

@@ -89,13 +89,21 @@ def solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir, flg_cannot_r
     # 正确执行 LKH3：传入 .par 文件
     assert os.path.exists(lkh_exec), "LKH 执行文件不存在"
     assert os.path.exists(work_dir), "工作目录不存在"
-    result = subprocess.run(
+
+    try:
+        result = subprocess.run(
         [lkh_exec, os.path.basename(par_file)],
         cwd=work_dir,
         capture_output=True,
         text=True,
-        timeout=60
-    )
+        timeout=30
+        )
+    except subprocess.TimeoutExpired as e:
+        print(f"Warning: LKH run timed out. {e}")
+        flg_cannot_run[0] = True
+        return None
+
+
     # print(result.stdout)
     # print(result.stderr)
     # print(f"Return code: {result.returncode}")

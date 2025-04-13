@@ -15,20 +15,20 @@ class HeteroOrderDispatchEnv:
         log_Z = self.model.cal_logz(emb=emb_pd, omega_encoded=self.preference_omega)
         return log_Z
 
-    def run_all(self, epsilon=0, flg_train=False):
+    def run_all(self, epsilon=0, flg_train=False, flg_infer=False):
         log_probs_list = []
         while True:
             unassigned_mask = self.data['order'].x[:, 0] == 0  # is_on_hand == 0
             if unassigned_mask.sum() == 0:
                 break  # 全部分配完成
-            log_probs = self._assign_one_order(epsilon=epsilon, flg_train=flg_train)
+            log_probs = self._assign_one_order(epsilon=epsilon, flg_train=flg_train, flg_infer=flg_infer)
             log_probs_list.append(log_probs)
         if flg_train:
             return self.data, torch.stack(log_probs_list)
         else:
             return self.data
 
-    def _assign_one_order(self, epsilon=0, flg_train=False):
+    def _assign_one_order(self, epsilon=0, flg_train=False, flg_infer=False):
         # 1. 计算所有边的 score
         edge_attr = self.data['order', 'assigns_to', 'rider'].edge_attr
         out = self.model(self.data.x_dict, self.data.edge_index_dict, {('order', 'assigns_to', 'rider'): edge_attr}, self.preference_omega)
@@ -49,6 +49,8 @@ class HeteroOrderDispatchEnv:
         # 4. 采样一条边（按GFlowNet风格，从概率分布中sample）
         if flg_train:
             EPSILON = epsilon
+        elif flg_infer:
+            EPSILON = 0.7
         else:
             EPSILON = -1  # 推理时彻底禁用探索
         edge_distribution = torch.distributions.Categorical(probs=edge_prob)

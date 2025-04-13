@@ -72,7 +72,7 @@ def generate_problem_and_par(rider_idx, rider_data, save_path, flg_2runs = False
         if flg_2runs:
             f.write(f"SUBGRADIENT = NO\n")
             f.write(f"RUNS = 2\n")
-        elif N < 20:
+        else:
             f.write(f"SUBGRADIENT = NO\n")
             f.write(f"RUNS = 5\n")
 

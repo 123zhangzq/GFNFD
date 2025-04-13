@@ -172,14 +172,14 @@ def train():
                         cost = compute_multiorder_min_distance(rider_data)
                     else:
                         # cost = solve_rider_with_LKH(rider_idx, rider_data, lkh_exec, work_dir)
-                        cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir)
+                        cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir) / 1000
                     results[rider_idx] = {
                         "routing_cost": cost,
                         "num_tasks": rider_data['num_tasks']
                     }
                     total_routing_cost += cost
 
-                f2 = total_routing_cost / 1000
+                f2 = total_routing_cost
 
                 task_counts = [r['num_tasks'] for r in results.values()]
                 max_tasks = max(task_counts)
@@ -411,14 +411,14 @@ def validate(gnn_node_emb, gnn_order_dispatch, DEVICE):
                     elif rider_data['num_tasks'] == 3:
                         cost = compute_multiorder_min_distance(rider_data)
                     else:
-                        cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir)
+                        cost = LKH_solve_rider_with_retry(rider_idx, rider_data, lkh_exec, work_dir) / 1000
                     results[rider_idx] = {
                         "routing_cost": cost,
                         "num_tasks": rider_data['num_tasks']
                     }
                     total_routing_cost += cost
 
-                f2 = total_routing_cost / 1000
+                f2 = total_routing_cost
 
                 task_counts = [r['num_tasks'] for r in results.values()]
                 max_tasks = max(task_counts)

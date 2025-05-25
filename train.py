@@ -191,6 +191,7 @@ def train():
                 final_f = f1 * omega[1] + f2 * omega[0]
 
                 # print("Current reward: ", final_f)
+                print("Current reward: ", f1)
 
                 # calculate tb_loss_k
                 reward_k = torch.tensor(1.0 / (final_f + 1e-8), device=DEVICE)
@@ -210,8 +211,11 @@ def train():
         loss = loss_all / num
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(parameters=gnn_node_emb.parameters(), max_norm=3.0, norm_type=2)
-        torch.nn.utils.clip_grad_norm_(parameters=gnn_order_dispatch.parameters(), max_norm=3.0, norm_type=2)
+
+        view_data = gnn_node_emb.v_lins1[0]
+
+        #torch.nn.utils.clip_grad_norm_(parameters=gnn_node_emb.parameters(), max_norm=3.0, norm_type=2)
+        #torch.nn.utils.clip_grad_norm_(parameters=gnn_order_dispatch.parameters(), max_norm=3.0, norm_type=2)
         optimizer.step()
 
         # Update the schedular
@@ -259,78 +263,86 @@ def validate(gnn_node_emb, gnn_order_dispatch, DEVICE):
     # validation dataset
     val_data = [
         {
-            "num_orders" : 10,
-            "num_riders" : 3,
-            "seed" : 1,
+            "num_orders": 10,
+            "num_riders": 3,
+            "seed": 1,
             "emega": 0.01,
             "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 1,
-            "emega": 0.75,
-            "k_sparse_node_emb": 21,
-        }
-        ,
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 1,
-            "emega": 0.85,
-            "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 1,
-            "emega": 0.95,
-            "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 2,
-            "emega": 0.79,
-            "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 3,
-            "emega": 0.79,
-            "k_sparse_node_emb": 21,
-        }
-        ,
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 3,
-            "emega": 0.89,
-            "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 4,
-            "emega": 0.69,
-            "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 4,
-            "emega": 0.79,
-            "k_sparse_node_emb": 21,
-        },
-        {
-            "num_orders": 10,
-            "num_riders": 3,
-            "seed": 5,
-            "emega": 0.89,
-            "k_sparse_node_emb": 21,
-        }
-    ]
+        }]
+    # val_data = [
+    #     {
+    #         "num_orders" : 10,
+    #         "num_riders" : 3,
+    #         "seed" : 1,
+    #         "emega": 0.01,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 1,
+    #         "emega": 0.75,
+    #         "k_sparse_node_emb": 21,
+    #     }
+    #     ,
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 1,
+    #         "emega": 0.85,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 1,
+    #         "emega": 0.95,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 2,
+    #         "emega": 0.79,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 3,
+    #         "emega": 0.79,
+    #         "k_sparse_node_emb": 21,
+    #     }
+    #     ,
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 3,
+    #         "emega": 0.89,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 4,
+    #         "emega": 0.69,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 4,
+    #         "emega": 0.79,
+    #         "k_sparse_node_emb": 21,
+    #     },
+    #     {
+    #         "num_orders": 10,
+    #         "num_riders": 3,
+    #         "seed": 5,
+    #         "emega": 0.89,
+    #         "k_sparse_node_emb": 21,
+    #     }
+    # ]
 
     for item in val_data:
         num_orders = item["num_orders"]
@@ -429,7 +441,8 @@ def validate(gnn_node_emb, gnn_order_dispatch, DEVICE):
 
                 final_f = f1 * (1 - omega) + f2 * omega
 
-                item["result"] = final_f
+                item["result"] = f1
+                #item["result"] = final_f
 
     results = [item["result"] for item in val_data if "result" in item]
     average_result = sum(results) / len(results) if results else None

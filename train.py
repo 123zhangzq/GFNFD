@@ -53,7 +53,7 @@ def train():
 
     # Init. GNN 和 GFlowNet
     gnn_node_emb = NodeEmbedGNN(feats = 3).to(DEVICE)
-    gnn_order_dispatch = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1,
+    gnn_order_dispatch = OrderCourierHeteroGNN(order_input_dim = 5, rider_input_dim = 3, edge_attr_dim= 1,
                                                 hidden_dim = 64, omega_dim=6, flg_gfn=True).to(DEVICE)
 
     # Init. optimizer and schheduler
@@ -211,11 +211,8 @@ def train():
         loss = loss_all / num
         optimizer.zero_grad()
         loss.backward()
-
-        view_data = gnn_node_emb.v_lins1[0]
-
-        #torch.nn.utils.clip_grad_norm_(parameters=gnn_node_emb.parameters(), max_norm=3.0, norm_type=2)
-        #torch.nn.utils.clip_grad_norm_(parameters=gnn_order_dispatch.parameters(), max_norm=3.0, norm_type=2)
+        torch.nn.utils.clip_grad_norm_(parameters=gnn_node_emb.parameters(), max_norm=3.0, norm_type=2)
+        torch.nn.utils.clip_grad_norm_(parameters=gnn_order_dispatch.parameters(), max_norm=3.0, norm_type=2)
         optimizer.step()
 
         # Update the schedular

@@ -146,6 +146,12 @@ class NodeEmbedGNN(nn.Module):
         self.e_lins0 = nn.ModuleList([nn.Linear(self.units, self.units) for i in range(self.depth)])
         self.e_bns = nn.ModuleList([torch_geometric.nn.BatchNorm(self.units) for i in range(self.depth)])
 
+        self.mlp_head = nn.Sequential(
+            nn.Linear(self.units, self.units * 2),
+            nn.ReLU(),
+            nn.Linear(self.units * 2, 2)
+        )
+
     def reset_parameters(self):
         raise NotImplementedError
 
@@ -167,6 +173,7 @@ class NodeEmbedGNN(nn.Module):
             w2 = torch.sigmoid(w0)
             x = x0 + self.act_fn(self.v_bns[i](x1 + self.agg_fn(w2 * x2[edge_index[1]], edge_index[0])))
             w = w0 + self.act_fn(self.e_bns[i](w1 + x3[edge_index[0]] + x4[edge_index[1]]))
-        return x
+        #return x
+        return self.mlp_head(x)
 
 ################################### END GNN for Nodes of Orders Embedding #################################

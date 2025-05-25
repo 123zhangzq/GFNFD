@@ -73,7 +73,11 @@ class HeteroOrderDispatchEnv:
         self.data['order'].x[order_idx, 0] = 1
         # self.data['order'].x[order_idx, 0] = 1  # is_on_hand=1
 
-        # 7. 更新 graph：移除旧边，只保留这条分配边
+        # 7. update rider node feature
+        self.data['rider'].x = self.data['rider'].x.clone()
+        self.data['rider'].x[rider_idx, 0] += 1
+
+        # 8. 更新 graph：移除旧边，只保留这条分配边
         old_edge_index = self.data['order', 'assigns_to', 'rider'].edge_index
         old_edge_attr = self.data['order', 'assigns_to', 'rider'].edge_attr
 

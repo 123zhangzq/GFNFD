@@ -9,7 +9,7 @@ CONFIG = {
     "lr": 0.001,              # 学习率
     "hidden_dim": 64,         # GNN 隐藏层维度
     "batch_size": 5,         # 训练批次大小
-    "epochs": 500,             # 训练轮数
+    "epochs": 30,             # 训练轮数
     # "wandb_project": "GFlowNet_Order_Assignment",  # WandB 项目名称
     #"preference_bins": [(0.0, 0.5), (0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0)],   # multi-obj weight
     "preference_bins": [(0.01, 0.02)],   # only for routing

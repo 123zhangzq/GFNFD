@@ -194,7 +194,8 @@ def train():
                 print("Current reward: ", f1)
 
                 # calculate tb_loss_k
-                reward_k = torch.tensor(1.0 / (final_f + 1e-8), device=DEVICE)
+                #reward_k = torch.tensor(1.0 / (final_f + 1e-8), device=DEVICE)
+                reward_k = torch.exp(-5 * final_f)
                 Log_R = torch.log(reward_k)
                 Log_Z_theta = torch.log(flow_Z + 1e-8)
                 forward_flow = Log_PF.sum(0) + Log_Z_theta

@@ -42,11 +42,12 @@ class OrderCourierHeteroGNN(nn.Module):
         order_embeddings = x_dict['order']  # (num_orders, order_input_dim)
         x_dict = self.conv(x_dict, edge_index_dict, edge_attr_dict)
         rider_embeddings = x_dict['rider']  # (num_riders, hidden_dim)
+        rider_embeddings = F.normalize(rider_embeddings, p=2, dim=1)
 
         edge_index = edge_index_dict[('order', 'assigns_to', 'rider')]
         order_idx, rider_idx = edge_index
 
-        # 把 order 先投影
+        # 把 order 先投影 hidden_dim
         order_proj_embed = self.order_proj(order_embeddings)  # (num_orders, hidden_dim)
 
 

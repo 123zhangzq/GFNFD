@@ -45,7 +45,7 @@ def infer(model_path):
 
     # Init. GNN 和 GFlowNet
     gnn_node_emb = NodeEmbedGNN(feats = 3).to(DEVICE)
-    gnn_order_dispatch = OrderCourierHeteroGNN(order_input_dim = 65, rider_input_dim = 33, edge_attr_dim= 1,
+    gnn_order_dispatch = OrderCourierHeteroGNN(order_input_dim = 5, rider_input_dim = 3, edge_attr_dim= 1,
                                                 hidden_dim = 64, omega_dim=6, flg_gfn=True).to(DEVICE)
 
     # Init. optimizer and schheduler
@@ -86,7 +86,35 @@ def inference(gnn_node_emb, gnn_order_dispatch, DEVICE):
             "num_orders" : 10,
             "num_riders" : 3,
             "seed" : 1,
+            "omega": 0.01,
+            "k_sparse_node_emb": 21,
+        },
+        {
+            "num_orders": 10,
+            "num_riders": 3,
+            "seed": 1,
             "omega": 0.8,
+            "k_sparse_node_emb": 21,
+        },
+        {
+            "num_orders": 10,
+            "num_riders": 3,
+            "seed": 1,
+            "omega": 0.9,
+            "k_sparse_node_emb": 21,
+        },
+        {
+            "num_orders": 10,
+            "num_riders": 3,
+            "seed": 1,
+            "omega": 0.93,
+            "k_sparse_node_emb": 21,
+        },
+        {
+            "num_orders": 10,
+            "num_riders": 3,
+            "seed": 1,
+            "omega": 0.99,
             "k_sparse_node_emb": 21,
         }
     ]
@@ -122,7 +150,7 @@ def inference(gnn_node_emb, gnn_order_dispatch, DEVICE):
             riders_emb = node_emb[2 * num_orders:, :]
 
             # sample n times
-            for i in range(5):
+            for i in range(100):
                 # generate pyg data for order-courier dispatching
                 pyg_order_courier = gen_pyg_hetero_bigraph(num_orders=num_orders,
                                                            num_riders=num_riders, order_emb=orders_emb,
@@ -187,6 +215,8 @@ def inference(gnn_node_emb, gnn_order_dispatch, DEVICE):
                 f1 = delta
 
                 final_f = f1 * (1 - omega) + f2 * omega
+
+                print(f"F1: {f1:.4f}, F2: {f2:.4f}, omega_f1: {omega:.4f}")
 
                 sample_results.append((final_f,f1,f2))
 

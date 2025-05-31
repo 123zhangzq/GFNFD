@@ -42,11 +42,12 @@ class OrderCourierHeteroGNN(nn.Module):
         order_embeddings = x_dict['order']  # (num_orders, order_input_dim)
         x_dict = self.conv(x_dict, edge_index_dict, edge_attr_dict)
         rider_embeddings = x_dict['rider']  # (num_riders, hidden_dim)
+        rider_embeddings = F.normalize(rider_embeddings, p=2, dim=1)
 
         edge_index = edge_index_dict[('order', 'assigns_to', 'rider')]
         order_idx, rider_idx = edge_index
 
-        # 把 order 先投影
+        # 把 order 先投影 hidden_dim
         order_proj_embed = self.order_proj(order_embeddings)  # (num_orders, hidden_dim)
 
 
@@ -146,6 +147,12 @@ class NodeEmbedGNN(nn.Module):
         self.e_lins0 = nn.ModuleList([nn.Linear(self.units, self.units) for i in range(self.depth)])
         self.e_bns = nn.ModuleList([torch_geometric.nn.BatchNorm(self.units) for i in range(self.depth)])
 
+        self.mlp_head = nn.Sequential(
+            nn.Linear(self.units, self.units * 2),
+            nn.ReLU(),
+            nn.Linear(self.units * 2, 2)
+        )
+
     def reset_parameters(self):
         raise NotImplementedError
 
@@ -167,6 +174,7 @@ class NodeEmbedGNN(nn.Module):
             w2 = torch.sigmoid(w0)
             x = x0 + self.act_fn(self.v_bns[i](x1 + self.agg_fn(w2 * x2[edge_index[1]], edge_index[0])))
             w = w0 + self.act_fn(self.e_bns[i](w1 + x3[edge_index[0]] + x4[edge_index[1]]))
-        return x
+        #return x
+        return self.mlp_head(x)
 
 ################################### END GNN for Nodes of Orders Embedding #################################

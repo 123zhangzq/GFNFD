@@ -13,8 +13,14 @@ from lkh3_solver import LKH_solve_rider_with_retry
 from data_loader import gen_pyg_data_nodes, gen_pyg_hetero_bigraph
 import platform
 import math
+from utils import output_pareto_plot
 
 
+'''
+--infer
+--model_path
+./pretrained/10_3/checkpoint_epoch20.pt
+'''
 
 def infer(model_path):
     # torch.autograd.set_detect_anomaly(True)
@@ -80,6 +86,7 @@ def inference(gnn_node_emb, gnn_order_dispatch, DEVICE):
     gnn_node_emb.eval()
     gnn_order_dispatch.eval()
     sample_results = []
+
     # validation dataset
     val_data = [
         {
@@ -118,6 +125,13 @@ def inference(gnn_node_emb, gnn_order_dispatch, DEVICE):
             "k_sparse_node_emb": 21,
         }
     ]
+
+    # sol
+    opt_pareto_x = [0.7, 2.3, 3.3, 6.7]
+    opt_pareto_y = [4.22, 3.68, 3.62, 3.57]
+    sample_x = []
+    sample_y = []
+
 
     for item in val_data:
         num_orders = item["num_orders"]
@@ -218,6 +232,11 @@ def inference(gnn_node_emb, gnn_order_dispatch, DEVICE):
 
                 print(f"F1: {f1:.4f}, F2: {f2:.4f}, omega_f1: {omega:.4f}")
 
+                sample_x.append(f1)
+                sample_y.append(f2)
                 sample_results.append((final_f,f1,f2))
+
+    # plot
+    output_pareto_plot((opt_pareto_x, opt_pareto_y), (sample_x,sample_y), flag_save=True)
 
     return sample_results

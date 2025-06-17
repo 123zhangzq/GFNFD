@@ -5,6 +5,7 @@ import numpy as np
 import random
 import math
 import itertools
+import matplotlib.pyplot as plt
 
 def init_wandb():
     wandb.init(
@@ -197,3 +198,53 @@ def compute_multiorder_min_distance(rider_data):
 
     dfs([], depot, 0.0, set())
     return best_dist[0]
+
+
+def output_pareto_plot(optimal_pareto_x_y, sample_sol_x_y_list, flag_save=False):
+    # 原始数据点
+    x,y = optimal_pareto_x_y
+
+    # 新的数据点（只使用 F1 和 F2）
+    x_new, y_new = sample_sol_x_y_list
+
+    # 创建图形
+    plt.figure(figsize=(6, 6))
+
+    # 绘制原始点
+    plt.scatter(x, y, s=100, label="Pareto optimal point")
+
+    # 绘制新点，使用红色 'x'
+    plt.scatter(x_new, y_new, color='red', marker='x', s=100, label="DGNN_GFN")
+
+    # 添加标题和坐标轴标签
+    plt.title("Pareto Front of Instance 10-3-(1)", fontsize=16)
+    plt.xlabel("$f_1$", fontsize=16)
+    plt.ylabel("$f_2$", fontsize=16)
+
+    # 设置刻度字体大小
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+
+    # 添加图例
+    plt.legend(fontsize=12)
+
+    # 去除顶部和右侧边框
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # 显示网格
+    plt.grid(False)
+
+    # 调整布局以防止内容被遮挡
+    plt.tight_layout()
+
+    # 保存为 PDF 文件
+    if flag_save == True:
+        plt.savefig("output.pdf", format='pdf')
+
+    # 显示图形
+    plt.show()
+
+
+
